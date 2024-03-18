@@ -24,11 +24,13 @@ typedef struct {
   // instance-specific variables here
   float level; // this is example
   sox_effect_t** filters;
+  char** types;
+  size_t* argc;
   ddb_waveformat_t fmt_old;
 } ddb_dsp_parametric_eq_t;
 
 static _Bool sox_initialized = 0, effects_initialized = 0;
-static size_t n_filters = 8;
+static size_t n_filters = 9;
 
 ddb_dsp_context_t*
 ddb_dsp_parametric_eq_open (void) {
@@ -84,19 +86,23 @@ ddb_dsp_parametric_eq_process (ddb_dsp_context_t *ctx, float *samples, int nfram
   plugin->fmt_old = *fmt;
   if(!effects_initialized) {
     plugin->filters = malloc(sizeof(sox_effect_t*) * n_filters * fmt->channels);
+    plugin->types = malloc(sizeof(char*) * n_filters);
+    plugin->types = (char*[]){ "gain", "equalizer", "equalizer", "equalizer", "equalizer", "equalizer", "equalizer", "equalizer", "equalizer" };
+    plugin->argc = malloc(sizeof(size_t) * n_filters);
+    plugin->argc = (size_t[]){ 1, 3, 3, 3, 3, 3, 3, 3, 3 };
     char ***argv = malloc(sizeof(char**) * n_filters);
-    argv[0] = (char*[]){ "60", "0.91q", "-6.4" };
-    argv[1] = (char*[]){ "254", "2.02q", "4.8" };
-    argv[2] = (char*[]){ "480", "2.2q", "-0.4" };
-    argv[3] = (char*[]){ "2165", "1.16q", "-4.4" };
-    argv[4] = (char*[]){ "3473", "5.24q", "1.1" };
-    argv[5] = (char*[]){ "4599", "3.70q", "5.1" };
-    argv[6] = (char*[]){ "5114", "6q", "1.2" };
-    argv[7] = (char*[]){ "6650", "4.63q", "-3.5" };
-
+    argv[0] = (char*[]){ "-6.6" };
+    argv[1] = (char*[]){ "60", "0.91q", "-6.4" };
+    argv[2] = (char*[]){ "254", "2.02q", "4.8" };
+    argv[3] = (char*[]){ "480", "2.2q", "-0.4" };
+    argv[4] = (char*[]){ "2165", "1.16q", "-4.4" };
+    argv[5] = (char*[]){ "3473", "5.24q", "1.1" };
+    argv[6] = (char*[]){ "4599", "3.70q", "5.1" };
+    argv[7] = (char*[]){ "5114", "6q", "1.2" };
+    argv[8] = (char*[]){ "6650", "4.63q", "-3.5" };
     for(size_t i = 0; i < (fmt->channels * n_filters); i++) {
-      plugin->filters[i] = sox_create_effect(sox_find_effect("equalizer"));
-      assert(sox_effect_options(plugin->filters[i], 3, argv[i % n_filters]) == SOX_SUCCESS);
+      plugin->filters[i] = sox_create_effect(sox_find_effect(plugin->types[i % n_filters]));
+      assert(sox_effect_options(plugin->filters[i], plugin->argc[i % n_filters], argv[i % n_filters]) == SOX_SUCCESS);
       plugin->filters[i]->clips = 0; plugin->filters[i]->global_info->plot = sox_plot_off;
       plugin->filters[i]->in_signal = (struct sox_signalinfo_t){ fmt->samplerate, 1, fmt->bps, -1, NULL };
       plugin->filters[i]->handler.start(plugin->filters[i]);
@@ -206,3 +212,4 @@ ddb_dsp_parametric_eq_load (DB_functions_t *f) { /* entry point for the program 
   deadbeef = f;
   return &plugin.plugin;
 }
+
