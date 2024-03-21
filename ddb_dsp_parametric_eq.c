@@ -1,19 +1,12 @@
-// this is a dsp plugin skeleton/example
-// use to create new dsp plugins
-
-// usage:
-// 1. copy to your plugin folder
-// 2. s/example/plugname/g
-// 3. s/EXAMPLE/PLUGNAME/g
-
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <sox/sox.h>
 #include <deadbeef/deadbeef.h>
+#include "parser.h"
 
 enum {
-  DDB_DSP_PARAMETRIC_EQ_PARAM_LEVEL, //TODO
+  DDB_DSP_PARAMETRIC_EQ_PARAM_CONFIGPATH,
   DDB_DSP_PARAMETRIC_EQ_PARAM_COUNT
 };
 
@@ -22,15 +15,15 @@ static DB_dsp_t plugin; /* this plugin's api object, defined at the end, d.h lin
 typedef struct {
   ddb_dsp_context_t ctx;
   // instance-specific variables here
-  float level; // this is example
+  char path[256];
   sox_effect_t** filters;
   char** types;
   size_t* argc;
   ddb_waveformat_t fmt_old;
+  FilterConfig conf;
 } ddb_dsp_parametric_eq_t;
 
 static _Bool sox_initialized = 0, effects_initialized = 0;
-static size_t n_filters = 9;
 
 ddb_dsp_context_t*
 ddb_dsp_parametric_eq_open (void) {
@@ -38,10 +31,9 @@ ddb_dsp_parametric_eq_open (void) {
   DDB_INIT_DSP_CONTEXT (ddb_dsp_parametric_eq,ddb_dsp_parametric_eq_t,&plugin);
 
   // initialize
-  ddb_dsp_parametric_eq->level = 0.5; //TODO
+  memset(ddb_dsp_parametric_eq->path, 0, 256);
   ddb_dsp_parametric_eq->fmt_old = (ddb_waveformat_t){ 0 };
     
-  puts("ddb_dsp_parametric_eq_open");
   if(!sox_initialized)
     assert(sox_init() == SOX_SUCCESS);
   sox_initialized = 1;
@@ -52,10 +44,10 @@ void
 ddb_dsp_parametric_eq_reset (ddb_dsp_context_t *ctx) {
   ddb_dsp_parametric_eq_t *ddb_dsp_parametric_eq = (ddb_dsp_parametric_eq_t *)ctx;
   // use this method to flush dsp buffers, reset filters, etc
-  puts("ddb_dsp_parametric_eq_reset");
   if(effects_initialized) {
-    for(size_t i = 0; i < ddb_dsp_parametric_eq->fmt_old.channels * n_filters; i++)
+    for(size_t i = 0; i < ddb_dsp_parametric_eq->fmt_old.channels * ddb_dsp_parametric_eq->conf.n; i++)
       free(ddb_dsp_parametric_eq->filters[i]);
+    filterconfig_destroy(&(ddb_dsp_parametric_eq->conf));
   }
   effects_initialized = 0;
 }
@@ -65,7 +57,6 @@ ddb_dsp_parametric_eq_close (ddb_dsp_context_t *ctx) {
   ddb_dsp_parametric_eq_t *ddb_dsp_parametric_eq = (ddb_dsp_parametric_eq_t *)ctx;
 
   // free instance-specific allocations
-  puts("ddb_dsp_parametric_eq_close");
   ddb_dsp_parametric_eq_reset(ctx);
   if(sox_initialized)
     sox_quit();
@@ -77,32 +68,17 @@ ddb_dsp_parametric_eq_close (ddb_dsp_context_t *ctx) {
 int
 ddb_dsp_parametric_eq_process (ddb_dsp_context_t *ctx, float *samples, int nframes, int maxframes, ddb_waveformat_t *fmt, float *r) {
   ddb_dsp_parametric_eq_t *plugin = (ddb_dsp_parametric_eq_t *)ctx;
-  //puts("ddb_dsp_parametric_eq_process");
-
   if(effects_initialized && ((plugin->fmt_old.samplerate != fmt->samplerate) || (plugin->fmt_old.channels != fmt->channels))) {
     ddb_dsp_parametric_eq_reset(ctx);
     effects_initialized = 0;
   }
   plugin->fmt_old = *fmt;
   if(!effects_initialized) {
-    plugin->filters = malloc(sizeof(sox_effect_t*) * n_filters * fmt->channels);
-    plugin->types = malloc(sizeof(char*) * n_filters);
-    plugin->types = (char*[]){ "gain", "equalizer", "equalizer", "equalizer", "equalizer", "equalizer", "equalizer", "equalizer", "equalizer" };
-    plugin->argc = malloc(sizeof(size_t) * n_filters);
-    plugin->argc = (size_t[]){ 1, 3, 3, 3, 3, 3, 3, 3, 3 };
-    char ***argv = malloc(sizeof(char**) * n_filters);
-    argv[0] = (char*[]){ "-6.6" };
-    argv[1] = (char*[]){ "60", "0.91q", "-6.4" };
-    argv[2] = (char*[]){ "254", "2.02q", "4.8" };
-    argv[3] = (char*[]){ "480", "2.2q", "-0.4" };
-    argv[4] = (char*[]){ "2165", "1.16q", "-4.4" };
-    argv[5] = (char*[]){ "3473", "5.24q", "1.1" };
-    argv[6] = (char*[]){ "4599", "3.70q", "5.1" };
-    argv[7] = (char*[]){ "5114", "6q", "1.2" };
-    argv[8] = (char*[]){ "6650", "4.63q", "-3.5" };
-    for(size_t i = 0; i < (fmt->channels * n_filters); i++) {
-      plugin->filters[i] = sox_create_effect(sox_find_effect(plugin->types[i % n_filters]));
-      assert(sox_effect_options(plugin->filters[i], plugin->argc[i % n_filters], argv[i % n_filters]) == SOX_SUCCESS);
+    parse(plugin->path, &(plugin->conf));
+    plugin->filters = malloc(sizeof(sox_effect_t*) * plugin->conf.n * fmt->channels);
+    for(size_t i = 0; i < (fmt->channels * plugin->conf.n); i++) {
+      plugin->filters[i] = sox_create_effect(sox_find_effect(plugin->conf.types[i % plugin->conf.n]));
+      assert(sox_effect_options(plugin->filters[i], plugin->conf.argc[i % plugin->conf.n], plugin->conf.argv[i % plugin->conf.n]) == SOX_SUCCESS);
       plugin->filters[i]->clips = 0; plugin->filters[i]->global_info->plot = sox_plot_off;
       plugin->filters[i]->in_signal = (struct sox_signalinfo_t){ fmt->samplerate, 1, fmt->bps, -1, NULL };
       plugin->filters[i]->handler.start(plugin->filters[i]);
@@ -122,8 +98,8 @@ ddb_dsp_parametric_eq_process (ddb_dsp_context_t *ctx, float *samples, int nfram
 
   size_t samp = nframes;
 
-  for(size_t i = 0; i < (n_filters * fmt->channels); i++) {
-    size_t offs = nframes * (i / n_filters);
+  for(size_t i = 0; i < (plugin->conf.n * fmt->channels); i++) {
+    size_t offs = nframes * (i / plugin->conf.n);
     
     plugin->filters[i]->handler.flow(plugin->filters[i], ibuf + offs, obuf + offs, &samp, &samp);
     memcpy(ibuf + offs, obuf + offs, nframes * sizeof(sox_sample_t));
@@ -139,8 +115,8 @@ ddb_dsp_parametric_eq_process (ddb_dsp_context_t *ctx, float *samples, int nfram
 const char *
 ddb_dsp_parametric_eq_get_param_name (int p) {
   switch (p) {
-  case DDB_DSP_PARAMETRIC_EQ_PARAM_LEVEL:
-    return "Volume level";
+  case DDB_DSP_PARAMETRIC_EQ_PARAM_CONFIGPATH:
+    return "Configuration file";
   default:
     fprintf (stderr, "ddb_dsp_parametric_eq_param_name: invalid param index (%d)\n", p);
   }
@@ -156,8 +132,8 @@ void
 ddb_dsp_parametric_eq_set_param (ddb_dsp_context_t *ctx, int p, const char *val) {
   ddb_dsp_parametric_eq_t *ddb_dsp_parametric_eq = (ddb_dsp_parametric_eq_t *)ctx;
   switch (p) {
-  case DDB_DSP_PARAMETRIC_EQ_PARAM_LEVEL:
-    ddb_dsp_parametric_eq->level = atof (val);
+  case DDB_DSP_PARAMETRIC_EQ_PARAM_CONFIGPATH:
+    strcpy(ddb_dsp_parametric_eq->path, val);
     break;
   default:
     fprintf (stderr, "ddb_dsp_parametric_eq_param: invalid param index (%d)\n", p);
@@ -168,8 +144,8 @@ void
 ddb_dsp_parametric_eq_get_param (ddb_dsp_context_t *ctx, int p, char *val, int sz) {
   ddb_dsp_parametric_eq_t *ddb_dsp_parametric_eq = (ddb_dsp_parametric_eq_t *)ctx;
   switch (p) {
-  case DDB_DSP_PARAMETRIC_EQ_PARAM_LEVEL:
-    snprintf (val, sz, "%f", ddb_dsp_parametric_eq->level);
+  case DDB_DSP_PARAMETRIC_EQ_PARAM_CONFIGPATH:
+    snprintf (val, sz, "%s", ddb_dsp_parametric_eq->path);
     break;
   default:
     fprintf (stderr, "ddb_dsp_parametric_eq_get_param: invalid param index (%d)\n", p);
@@ -178,12 +154,7 @@ ddb_dsp_parametric_eq_get_param (ddb_dsp_context_t *ctx, int p, char *val, int s
 
 /* https://github.com/DeaDBeeF-Player/deadbeef/wiki/GUI-Script-Syntax */
 static const char settings_dlg[] =
-  "property \"Volume Level\" spinbtn[0,2,0.1] 0 0.5;\n"
-  /*                name       type with params ↑ default value*/
-  /*                              number of controlled value   */
-  /*                             according to enum in line 14  */
-  /*                              passed to set_param et al.   */
-  ;
+  "property \"Configuration file\" file 0 \"\";";
 
 static DB_dsp_t plugin = {
   .plugin.api_vmajor = DB_API_VERSION_MAJOR,
@@ -197,7 +168,7 @@ static DB_dsp_t plugin = {
   .plugin.id = "ddb_dsp_parametric_eq",
   .plugin.name = "Parametric equalizer (libsox)",
   .plugin.descr = "Parametric equalizer based on libsox",
-  .plugin.copyright = "BSD0 furtarball.github.io",
+  .plugin.copyright = "BSD-2-Clause furtarball.github.io",
   .plugin.website = "https://furtarball.github.io",
   .num_params = ddb_dsp_parametric_eq_num_params,
   .get_param_name = ddb_dsp_parametric_eq_get_param_name,
