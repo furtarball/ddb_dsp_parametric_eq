@@ -17,8 +17,6 @@ typedef struct {
   // instance-specific variables here
   char path[256];
   sox_effect_t** filters;
-  char** types;
-  size_t* argc;
   ddb_waveformat_t fmt_old;
   FilterConfig conf;
 } ddb_dsp_parametric_eq_t;
