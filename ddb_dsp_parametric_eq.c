@@ -100,12 +100,12 @@ ddb_dsp_parametric_eq_process (ddb_dsp_context_t *ctx, float *samples, int nfram
     
     plugin->filters[i]->handler.flow(plugin->filters[i], ibuf + offs, obuf + offs, &samp, &samp);
     memcpy(ibuf + offs, obuf + offs, nframes * sizeof(sox_sample_t));
-
-    for(size_t i = 0; i < fmt->channels; i++)
-      for(size_t j = 0; j < nframes; j++)
-	samples[(j * fmt->channels) + i] = SOX_SAMPLE_TO_FLOAT_32BIT(obuf[(i * nframes) + j], clips);
-
   }
+  
+  for(size_t i = 0; i < fmt->channels; i++)
+    for(size_t j = 0; j < nframes; j++)
+      samples[(j * fmt->channels) + i] = SOX_SAMPLE_TO_FLOAT_32BIT(obuf[(i * nframes) + j], clips);
+
   return nframes;
 }
 
