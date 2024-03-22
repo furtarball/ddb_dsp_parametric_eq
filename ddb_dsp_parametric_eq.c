@@ -39,14 +39,17 @@ static int
 action_edit (DB_plugin_action_t *act, ddb_action_context_t ctx) {
   ddb_dialog_t conf = {
     .title = "EQ Configuration Editor",
-    .layout = "property \"New filters ([OK] to create)\" hscale[0,15,1] n 1;"\
+    .layout = "property \"Add/remove this number of filters ([OK] to apply)\" spinbtn[-3,15,1] n 0;"\
     "property \"File ([OK] to open/save)\" file f \"\";"\
-    "property \"Preamp [dB]\" hscale[-12,0,0.1] p 0;"\
+    "property \"Preamp [dB]\" hscale[-12,12,0.1] p 0;"\
+    "property \"\" hbox[2] hmg height=0;"\
     "property \"Filter 1\" select[9] t1 0 Peak Lowshelf Highshelf Lowpass Highpass Bandpass Notch Allpass \"Biquad (2nd order)\";"\
-    "property \"\" hbox[3] hmg height=0;"\
-    "property Freq./coeffs entry f1 1000;"\
-    "property Gain entry g1 0.0;"\
-    "property Width entry w1 1.2q;",
+    "property \"Coefficients (for biquad)\" entry c1 \"\";"\
+    "property \"\" hbox[4] hmg height=0;"\
+    "property Frequency spinbtn[0,20000,1] f1 1000;"\
+    "property Gain hscale[-12,12,0.1] g1 0;"\
+    "property Width spinbtn[0,30,0.1] w1 1;"\
+    "property \"\" select[2] wt1 0 Q Octave;",
     .set_param = set_param,
     .get_param = get_param,
     .parent = NULL

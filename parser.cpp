@@ -86,11 +86,11 @@ int parse(const char* path, FilterConfig* conf) {
 	  else {
 	    string q;
 	    if(eq_type == "BP") {
-	      q = "0.5q";
+	      q = "0.7071q";
 	      args.push_back(q);
 	    }
-	    else {
-	      q = "6q";
+	    else { // eq_type == "NO"
+	      q = "30q";
 	      args.push_back(q);
 	    }
 	  }
