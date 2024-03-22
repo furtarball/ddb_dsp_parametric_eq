@@ -19,16 +19,6 @@ map<string, string> eqapo_to_sox = {
   {"HSC", "treble"}, {"NO", "bandreject"}, {"AP", "allpass"}, {"IIR", "biquad"}
 };
 
-enum EqType {
-  PEAK, LOWPASS, LOWPASS_Q, HIGHPASS, HIGHPASS_Q, BANDPASS, BASS, BASS_C, TREBLE, TREBLE_C, BANDREJECT, ALLPASS, BIQUAD, EQTYPES_COUNT
-};
-
-map<string, EqType> eqapo_to_enum = {
-  {"PK", PEAK}, {"LP", LOWPASS}, {"LPQ", LOWPASS_Q}, {"HP", HIGHPASS},
-  {"HPQ", HIGHPASS_Q}, {"BP", BANDPASS}, {"LS", BASS}, {"LSC", BASS_C}, {"HS", TREBLE},
-  {"HSC", TREBLE_C}, {"NO", BANDREJECT}, {"AP", ALLPASS}, {"IIR", BIQUAD}
-};
-
 void filterconfig_init(FilterConfig& fc, vector<string>& types, vector<vector<string>>& argv) {
   fc.n = types.size();
   fc.types = new char*[fc.n];
@@ -58,6 +48,7 @@ string substr_to_end(const string& s, size_t p) {
 
 int parse(const char* path, FilterConfig* conf) {
   ifstream file(path);
+  if(!file) return 0;
   vector<string> types;
   vector<vector<string>> argv;
   string l;
@@ -82,15 +73,26 @@ int parse(const char* path, FilterConfig* conf) {
 	string gain = substr_to_nearest_space(l, tp);
 	if((eq_type.substr(0, 2) != "LS") && (eq_type.substr(0, 2) != "HS")) {
 	  args.push_back(freq);
-	  if(qp != string::npos) {
+	  if(bwp != string::npos) {
+	    bwp += 7;
+	    string bw = substr_to_end(l, bwp) + "o";
+	    args.push_back(bw);
+	  }
+	  else if(qp != string::npos) {
 	    qp += 2;
 	    string q = substr_to_end(l, qp) + "q";
 	    args.push_back(q);
 	  }
-	  else if(bwp != string::npos) {
-	    bwp += 7;
-	    string bw = substr_to_end(l, bwp) + "o";
-	    args.push_back(bw);
+	  else {
+	    string q;
+	    if(eq_type == "BP") {
+	      q = "0.5q";
+	      args.push_back(q);
+	    }
+	    else {
+	      q = "6q";
+	      args.push_back(q);
+	    }
 	  }
 	  if(eq_type == "PK") {
 	    gp += 5;
@@ -116,7 +118,24 @@ int parse(const char* path, FilterConfig* conf) {
 	}
       }
       else {
-
+	tp = l.find("Order");
+	if(tp == string::npos) return 0;
+	tp += 6;
+	string order = substr_to_nearest_space(l, tp);
+	if(order != "2") return 0;
+	tp = l.find("Coefficients");
+	if(tp == string::npos) return 0;
+	tp += 13;
+	for(size_t i = 0; i < 6; i++) {
+	  string c;
+	  if(i < 5)
+	    c = substr_to_nearest_space(l, tp);
+	  else
+	    c = substr_to_end(l, tp);
+	  if(c == "") return 0;
+	  tp += c.length() + 1;
+	  args.push_back(c);
+	}
       }
       argv.push_back(args);
     }

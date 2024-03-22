@@ -72,7 +72,7 @@ ddb_dsp_parametric_eq_process (ddb_dsp_context_t *ctx, float *samples, int nfram
   }
   plugin->fmt_old = *fmt;
   if(!effects_initialized) {
-    parse(plugin->path, &(plugin->conf));
+    if(parse(plugin->path, &(plugin->conf)) == 0) return 0;
     plugin->filters = malloc(sizeof(sox_effect_t*) * plugin->conf.n * fmt->channels);
     for(size_t i = 0; i < (fmt->channels * plugin->conf.n); i++) {
       plugin->filters[i] = sox_create_effect(sox_find_effect(plugin->conf.types[i % plugin->conf.n]));
@@ -81,11 +81,10 @@ ddb_dsp_parametric_eq_process (ddb_dsp_context_t *ctx, float *samples, int nfram
       plugin->filters[i]->in_signal = (struct sox_signalinfo_t){ fmt->samplerate, 1, fmt->bps, -1, NULL };
       plugin->filters[i]->handler.start(plugin->filters[i]);
     }
+    effects_initialized = 1;
   }
 
   size_t clips = 0;
-    
-  effects_initialized = 1;
   sox_sample_t ibuf[nframes * fmt->channels], obuf[nframes * fmt->channels];
 
   SOX_SAMPLE_LOCALS;
@@ -101,12 +100,12 @@ ddb_dsp_parametric_eq_process (ddb_dsp_context_t *ctx, float *samples, int nfram
     
     plugin->filters[i]->handler.flow(plugin->filters[i], ibuf + offs, obuf + offs, &samp, &samp);
     memcpy(ibuf + offs, obuf + offs, nframes * sizeof(sox_sample_t));
+
+    for(size_t i = 0; i < fmt->channels; i++)
+      for(size_t j = 0; j < nframes; j++)
+	samples[(j * fmt->channels) + i] = SOX_SAMPLE_TO_FLOAT_32BIT(obuf[(i * nframes) + j], clips);
+
   }
-    
-  for(size_t i = 0; i < fmt->channels; i++)
-    for(size_t j = 0; j < nframes; j++)
-      samples[(j * fmt->channels) + i] = SOX_SAMPLE_TO_FLOAT_32BIT(obuf[(i * nframes) + j], clips);
-    
   return nframes;
 }
 
