@@ -23,61 +23,6 @@ typedef struct {
 
 static _Bool sox_initialized = 0, effects_initialized = 0;
 
-static void
-set_param (const char *key, const char *value)
-{
-    return;
-}
-
-static void
-get_param (const char *key, char *value, int len, const char *def)
-{
-    return;
-}
-
-static int
-action_edit (DB_plugin_action_t *act, ddb_action_context_t ctx) {
-  ddb_dialog_t conf = {
-    .title = "EQ Configuration Editor",
-    .layout = "property \"Add/remove this number of filters ([OK] to apply)\" spinbtn[-3,15,1] n 0;"\
-    "property \"File ([OK] to open/save)\" file f \"\";"\
-    "property \"Preamp [dB]\" hscale[-12,12,0.1] p 0;"\
-    "property \"\" hbox[2] hmg height=0;"\
-    "property \"Filter 1\" select[9] t1 0 Peak Lowshelf Highshelf Lowpass Highpass Bandpass Notch Allpass \"Biquad (2nd order)\";"\
-    "property \"Coefficients (for biquad)\" entry c1 \"\";"\
-    "property \"\" hbox[4] hmg height=0;"\
-    "property Frequency spinbtn[0,20000,1] f1 1000;"\
-    "property Gain hscale[-12,12,0.1] g1 0;"\
-    "property Width spinbtn[0,30,0.01] w1 1;"\
-    "property \"\" select[2] wt1 0 Q Octave;",
-    .set_param = set_param,
-    .get_param = get_param,
-    .parent = NULL
-  };
-
-  struct DB_plugin_s **plugin_list;
-  for (plugin_list = deadbeef->plug_get_list(); *plugin_list && (*plugin_list)->type != DB_PLUGIN_GUI; plugin_list++);
-  if (*plugin_list) {
-    DB_gui_t *gui_plugin = (DB_gui_t *)*plugin_list;
-    if (gui_plugin->run_dialog(&conf, 1<<ddb_button_ok|1<<ddb_button_cancel, NULL, NULL) == ddb_button_ok) {
-      
-    }
-  }
-  return 0;
-}
-
-static DB_plugin_action_t add_cd_action = {
-  .name = "eq_conf_gui",
-  .title = "Edit/Edit parametric EQ configuration",
-  .flags = DB_ACTION_COMMON | DB_ACTION_ADD_MENU,
-  .callback2 = action_edit,
-  .next = NULL
-};
-
-static DB_plugin_action_t* get_actions(DB_playItem_t*) {
-  return &add_cd_action;
-}
-
 ddb_dsp_context_t*
 ddb_dsp_parametric_eq_open (void) {
   ddb_dsp_parametric_eq_t *ddb_dsp_parametric_eq = malloc (sizeof (ddb_dsp_parametric_eq_t));
@@ -222,7 +167,7 @@ static DB_dsp_t plugin = {
   .plugin.name = "Parametric equalizer (libsox)",
   .plugin.descr = "Parametric equalizer based on libsox",
   .plugin.copyright = "BSD 2-Clause License\n\n"
-  "Copyright (c) 2024, furtarball\n"
+  "Copyright (c) 2025, furtarball\n"
   "All rights reserved.\n\n"
   "Redistribution and use in source and binary forms, with or without\n"
   "modification, are permitted provided that the following conditions are met:\n\n"
@@ -247,7 +192,6 @@ static DB_dsp_t plugin = {
   .get_param = ddb_dsp_parametric_eq_get_param,
   .reset = ddb_dsp_parametric_eq_reset,
   .configdialog = settings_dlg,
-  .plugin.get_actions = get_actions,
 };
 
 DB_plugin_t *
