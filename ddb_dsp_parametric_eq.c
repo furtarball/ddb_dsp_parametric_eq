@@ -48,7 +48,7 @@ action_edit (DB_plugin_action_t *act, ddb_action_context_t ctx) {
     "property \"\" hbox[4] hmg height=0;"\
     "property Frequency spinbtn[0,20000,1] f1 1000;"\
     "property Gain hscale[-12,12,0.1] g1 0;"\
-    "property Width spinbtn[0,30,0.1] w1 1;"\
+    "property Width spinbtn[0,30,0.01] w1 1;"\
     "property \"\" select[2] wt1 0 Q Octave;",
     .set_param = set_param,
     .get_param = get_param,
@@ -100,6 +100,7 @@ ddb_dsp_parametric_eq_reset (ddb_dsp_context_t *ctx) {
   if(effects_initialized) {
     for(size_t i = 0; i < ddb_dsp_parametric_eq->fmt_old.channels * ddb_dsp_parametric_eq->conf.n; i++)
       free(ddb_dsp_parametric_eq->filters[i]);
+    free(ddb_dsp_parametric_eq->filters);
     filterconfig_destroy(&(ddb_dsp_parametric_eq->conf));
   }
   effects_initialized = 0;
