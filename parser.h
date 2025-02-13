@@ -1,23 +1,19 @@
 #ifndef PARSER_H
 #define PARSER_H
-#include <stddef.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <vector>
+#include <string>
 
-  typedef struct {
-    size_t n;
-    char** types;
-    size_t* argc;
-    char*** argv;
-  } FilterConfig;
-
-  void filterconfig_destroy(FilterConfig* fc);
-
+class FilterConfig {
   // returns 1 on success, 0 on error
-  int parse(const char* path, FilterConfig* conf);
+  bool parse(const std::string& path);
+  public:
+    size_t n; // number of filters stated in config file
+    std::vector<std::string> types;
+    std::vector<std::vector<std::string>> argv;
+    // necessary for sox filter setup
+    std::vector<std::vector<char*>> argv_c;
+    FilterConfig() {}
+    FilterConfig(const std::string& path);
+};
   
-#ifdef __cplusplus
-}
-#endif
 #endif
