@@ -19,12 +19,12 @@ FilterConfig::FilterConfig(const std::string& path) {
 		throw runtime_error{"Configuration parsing error"};
 	}
 	n = types.size();
-	for (auto& i : argv) {
+	for (auto& i : _argv) {
 		vector<char*> v;
 		for (auto& j : i) {
 			v.push_back(j.data());
 		}
-		argv_c.push_back(v);
+		_c_argv.push_back(v);
 	}
 }
 
@@ -137,10 +137,10 @@ bool FilterConfig::parse(const std::string& path) {
 					args.push_back(c);
 				}
 			}
-			argv.push_back(args);
+			_argv.push_back(args);
 		} else if (command == "Preamp") {
 			types.push_back("gain");
-			argv.push_back({substr_to_nearest_space(l, 8)});
+			_argv.push_back({substr_to_nearest_space(l, 8)});
 		} else
 			return 0;
 	}
